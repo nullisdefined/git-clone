@@ -1,4 +1,8 @@
-export class Blob {
+const crypto = require("crypto");
+const fs = require("fs").promises;
+const path = require("path");
+
+class Blob {
   constructor(content) {
     this.type = "blob";
     this.content = content;
@@ -8,7 +12,7 @@ export class Blob {
   calculateHash() {
     const header = `${this.type} ${this.content.length}\0`;
     const data = header + this.content;
-    return crypto.createHash("sha1").update(this.content).digest("hex");
+    return crypto.createHash("sha1").update(data).digest("hex");
   }
 
   async save(repoPath) {
@@ -21,3 +25,5 @@ export class Blob {
     await fs.writeFile(path.join(folderPath, fileName), this.content);
   }
 }
+
+module.exports = { Blob };
