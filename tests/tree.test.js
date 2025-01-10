@@ -11,6 +11,17 @@ jest.mock("crypto", () => ({
   })),
 }));
 
+jest.mock("fs", () => ({
+  promises: {
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    writeFile: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock("path", () => ({
+  join: (...args) => args.join("/"),
+}));
+
 describe("Tree", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -66,6 +77,30 @@ describe("Tree", () => {
       expect(crypto.createHash).toHaveBeenCalledWith("sha1");
       expect(mockUpdate).toHaveBeenCalledWith(expectedHash);
       expect(mockDigest).toHaveBeenCalledWith("hex");
+    });
+  });
+
+  describe("save", () => {
+    it("should save tree to correct path", async () => {
+      const tree = new Tree();
+      tree.addEntry("test.txt", "hash123");
+      const hash = await tree.save("/test/repo");
+
+      const fs = require("fs");
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(
+        expect.stringContaining("/test/repo/.pit/objects"),
+        expect.any(Object)
+      );
+      expect(fs.promises.writeFile).toHaveBeenCalled();
+      expect(hash).toBe("mockedHash123");
+    });
+
+    it("should handle save errors", async () => {
+      const tree = new Tree();
+      const fs = require("fs");
+      fs.promises.mkdir.mockRejectedValueOnce(new Error("Save failed"));
+
+      await expect(tree.save("/test/repo")).rejects.toThrow("Save failed");
     });
   });
 });

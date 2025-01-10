@@ -11,6 +11,17 @@ jest.mock("crypto", () => ({
   })),
 }));
 
+jest.mock("fs", () => ({
+  promises: {
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    writeFile: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock("path", () => ({
+  join: (...args) => args.join("/"),
+}));
+
 describe("Blob", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -41,6 +52,31 @@ describe("Blob", () => {
       expect(mockUpdate).toHaveBeenCalledWith(expectedData);
       expect(mockDigest).toHaveBeenCalledWith("hex");
       expect(blob.hash).toBe("mockedHash123");
+    });
+  });
+
+  describe("save", () => {
+    it("should save blob to correct path", async () => {
+      const blob = new Blob("test content");
+      await blob.save("/test/repo");
+
+      const fs = require("fs");
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(
+        expect.stringContaining("/test/repo/.pit/objects"),
+        expect.any(Object)
+      );
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining("/test/repo/.pit/objects"),
+        "test content"
+      );
+    });
+
+    it("should handle save errors", async () => {
+      const blob = new Blob("test content");
+      const fs = require("fs");
+      fs.promises.mkdir.mockRejectedValueOnce(new Error("Save failed"));
+
+      await expect(blob.save("/test/repo")).rejects.toThrow("Save failed");
     });
   });
 });
