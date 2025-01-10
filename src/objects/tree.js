@@ -6,10 +6,12 @@ class Tree {
   constructor() {
     this.type = "tree";
     this.entries = new Map();
+    this.hash = null;
   }
 
   addEntry(name, hash, mode = "100644") {
     this.entries.set(name, { hash, mode });
+    this.hash = null;
   }
 
   serialize() {
@@ -27,10 +29,13 @@ class Tree {
   }
 
   calculateHash() {
+    if (this.hash) return this.hash; // 이미 계산된 경우 그대로 반환
+
     const content = this.serialize();
     const header = `${this.type} ${content.length}\0`;
     const data = header + content;
-    return crypto.createHash("sha1").update(data).digest("hex");
+    this.hash = crypto.createHash("sha1").update(data).digest("hex");
+    return this.hash;
   }
 
   async save(repoPath) {
