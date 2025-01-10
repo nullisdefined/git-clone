@@ -19,7 +19,8 @@ class Tree {
     );
 
     for (const [name, { mode, hash }] of sortedEntries) {
-      content += `${mode} ${name}\0${hash}`;
+      const type = mode === "040000" ? "tree" : "blob";
+      content += `${mode} ${type} ${hash}\t${name}`;
     }
 
     return content;
