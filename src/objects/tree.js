@@ -14,7 +14,7 @@ class Tree {
 
   serialize() {
     let content = "";
-    const sortedEntries = Array.from(this.entries.entries).sort(([a], [b]) =>
+    const sortedEntries = Array.from(this.entries.entries()).sort(([a], [b]) =>
       a.localeCompare(b)
     );
 
