@@ -1,5 +1,5 @@
 {
-  "name": "git-clone",
+  "name": "pit2",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -12,11 +12,13 @@
   "license": "ISC",
   "description": "git clone",
   "bin": {
-    "pit": "./cli.js"
+    "pit": "cli.js"
   },
   "dependencies": {
     "commander": "^13.1.0",
-    "crypto": "^1.0.1"
+    "crypto": "^1.0.1",
+    "ignore": "^7.0.3",
+    "pit2": "^1.0.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

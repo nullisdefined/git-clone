@@ -2,6 +2,7 @@
 const { Command } = require("commander");
 const fs = require("fs");
 const path = require("path");
+const ignore = require("ignore");
 
 const packageJson = require("./package.json");
 
@@ -29,6 +30,7 @@ program
   .description("Add file(s) to the repository")
   .action(async (files) => {
     const repoPath = process.cwd();
+    await checkPitRepo(repoPath);
     await pitAdd(repoPath, files);
   });
 
@@ -38,6 +40,7 @@ program
   .option("-m, --message <msg>", "Commit message")
   .action(async (options) => {
     const repoPath = process.cwd();
+    await checkPitRepo(repoPath);
     const message = options.message || "Default commit message";
     await pitCommit(repoPath, message);
   });
@@ -56,21 +59,75 @@ async function pitInit(repoPath) {
   console.log("Initialized empty Pit repository in", pitDir);
 }
 
+async function checkPitRepo(repoPath) {
+  const pitDir = path.join(repoPath, ".pit");
+  if (!fs.existsSync(pitDir)) {
+    console.error("Not a pit repository (or any of the parent directories)");
+    process.exit(1);
+  }
+}
+
 async function pitAdd(repoPath, filePaths) {
   if (!filePaths || filePaths.length === 0) {
     console.log("Add file path(s) to the repository");
     return;
   }
 
+  const ig = ignore();
+  const pitIgnorePath = path.join(repoPath, ".pitignore");
+  if (fs.existsSync(pitIgnorePath)) {
+    const ignoreRules = fs.readFileSync(pitIgnorePath, "utf8");
+    ig.add(ignoreRules.split("\n").filter((line) => line.trim() !== ""));
+  }
+
+  const allFiles = new Set();
+
   for (const fp of filePaths) {
     const fullPath = path.join(repoPath, fp);
+
+    if (!fs.existsSync(fullPath)) {
+      console.error(`File or directory not found: ${fp}`);
+      continue;
+    }
+
+    const stat = fs.statSync(fullPath);
+    if (stat.isFile() && !ig.ignores(path.relative(repoPath, fullPath))) {
+      allFiles.add(fullPath);
+    } else if (stat.isDirectory()) {
+      await collectFiles(fullPath, allFiles, ig, repoPath);
+    }
+  }
+
+  for (const filePath of allFiles) {
     try {
-      const content = fs.readFileSync(fullPath, "utf8");
+      const content = fs.readFileSync(filePath, "utf8");
       const blob = new Blob(content);
       await blob.save(repoPath);
-      console.log(`file ${fp} -> object created (hash: ${blob.hash})`);
+      const relativePath = path.relative(repoPath, filePath);
+      // console.log(
+      //   `File ${relativePath} -> Object created (hash: ${blob.hash})`
+      // );
     } catch (err) {
-      console.error(`file not found: ${fp}`, err.message);
+      console.error(`Failed to read file: ${filePath}`, err.message);
+    }
+  }
+}
+
+async function collectFiles(dirPath, fileSet, ig, repoPath) {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    const relativePath = path.relative(repoPath, fullPath);
+
+    if (ig.ignores(relativePath)) {
+      continue;
+    }
+
+    if (entry.isFile()) {
+      fileSet.add(fullPath);
+    } else if (entry.isDirectory()) {
+      await collectFiles(fullPath, fileSet, ig, repoPath);
     }
   }
 }
